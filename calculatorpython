@@ -1,0 +1,51 @@
+import ast
+import operator
+import math
+
+operators = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg
+}
+
+allowed_funcs = {k: getattr(math, k) for k in dir(math) if not k.startswith("_")}
+
+def eval_expr(expr):
+    try:
+        tree = ast.parse(expr, mode='eval')
+        return eval_node(tree.body)
+    except Exception as e:
+        return f"Error: {e}"
+
+def eval_node(node):
+    if isinstance(node, ast.BinOp):
+        left = eval_node(node.left)
+        right = eval_node(node.right)
+        return operators[type(node.op)](left, right)
+    elif isinstance(node, ast.UnaryOp):
+        return operators[type(node.op)](eval_node(node.operand))
+    elif isinstance(node, ast.Num):
+        return node.n
+    elif isinstance(node, ast.Call):
+        func_name = node.func.id
+        if func_name in allowed_funcs:
+            args = [eval_node(arg) for arg in node.args]
+            return allowed_funcs[func_name](*args)
+        else:
+            raise ValueError(f"Function '{func_name}' not allowed.")
+    elif isinstance(node, ast.Name):
+        if node.id in allowed_funcs:
+            return allowed_funcs[node.id]
+        raise ValueError(f"Name '{node.id}' not recognized.")
+    else:
+        raise TypeError(f"Unsupported type: {type(node)}")
+
+
+while True:
+    expr = input("Calc > ")
+    if expr.lower() in ["exit", "quit"]:
+        break
+    print(eval_expr(expr))
